@@ -1,45 +1,52 @@
-# Dockerfile
-FROM node:20-alpine AS base
+# Use an official Node.js runtime as a base image
+FROM node:18 AS base
 
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat curl  # Use curl instead of wget
+# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
+# Copy dependency files first for better caching
+COPY package*.json ./
+
+# Install dependencies (including devDependencies for build process)
 RUN npm ci
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Copy all source code
 COPY . .
 
-# Build both client and server
+# Build both frontend and backend
 RUN npm run build
 
-# Production image
-FROM base AS runner
+# Production stage
+FROM node:18-slim AS production
+
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+# Copy package files and install only production dependencies
+COPY package*.json ./
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy built applications
-COPY --from=builder /app/dist ./dist                    # React client
-COPY --from=builder /app/server/dist ./server/dist      # Express server
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/shared ./shared                # Schema files
+# Copy built application from build stage
+COPY --from=base /app/dist ./dist
+COPY --from=base /app/client/dist ./client/dist
 
-USER nextjs
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=5000
 
-EXPOSE 3000 5000
+# Expose app port
+EXPOSE 5000
 
-# Health check for Express server
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD curl -f http://localhost:5000/api/health || exit 1
+# Create non-root user for security
+RUN groupadd -g 1001 -r nodejs && useradd -r -g nodejs -u 1001 nodejs
+RUN chown -R nodejs:nodejs /app
+USER nodejs
 
-# Start Express server (which will serve React in production)
-CMD ["node", "server/dist/index.js"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:5000/ || exit 1
+
+# Start the app
+CMD ["node", "dist/index.js"]
