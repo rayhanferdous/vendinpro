@@ -16,11 +16,7 @@ WORKDIR /
 COPY --from=deps /node_modules ./node_modules
 COPY . .
 
-# Build client
-RUN npm run build
-
-# Build server
-WORKDIR /server
+# Build client and server together (based on your package.json scripts)
 RUN npm run build
 
 # Production image
@@ -30,7 +26,7 @@ WORKDIR /
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
 
-# Copy built applications
+# Copy built applications - adjust paths based on your actual build output
 COPY --from=builder /dist ./dist
 COPY --from=builder /server/dist ./server/dist
 
