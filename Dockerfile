@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat wget   # Added wget for healthcheck
 WORKDIR /app
 
 # Copy package files
@@ -32,5 +32,9 @@ COPY --from=builder /app/node_modules ./node_modules
 USER nextjs
 
 EXPOSE 3000 5000
+
+# ✅ Custom Health Check
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:3000/ || exit 1
 
 CMD ["node", "dist/index.js"]
