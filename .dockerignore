@@ -1,0 +1,19 @@
+# .dockerignore
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.dockerignore
+Dockerfile
+docker-compose.yml
+dist
+build
+.coverage
+.nyc_output
+.coverage
+.nyc_output
