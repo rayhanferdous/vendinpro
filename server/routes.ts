@@ -14,6 +14,15 @@ import {
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+// health checkup
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
   // Setup authentication (creates /api/register, /api/login, /api/logout, /api/user, /api/forgot-password)
   setupAuth(app);
 
